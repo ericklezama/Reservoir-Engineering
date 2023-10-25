@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+  <title>Simple Sign up form</title>
+  <head>
+    <title>Gas Specific Gravity Calculation</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700" rel="stylesheet">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+    <style>
+      html, body {
+        display: flex;
+        justify-content: center;
+        font-family: Roboto, Arial, sans-serif;
+        font-size: 15px;
+      }
+      form {
+        border: 5px solid #f1f1f1;
+      }
+      input[type=text], input[type=password] {
+        width: 100%;
+        padding: 16px 8px;
+        margin: 8px 0;
+        display: inline-block;
+        border: 1px solid #ccc;
+        box-sizing: border-box;
+      }
+      .icon {
+        font-size: 110px;
+        display: flex;
+        justify-content: center;
+        color: #4286f4;
+      }
+      button {
+        background-color: #4286f4;
+        color: white;
+        padding: 14px 0;
+        margin: 10px 0;
+        border: none;
+        cursor: grab;
+        width: 48%;
+      }
+      h1 {
+        text-align: center;
+        fone-size: 18;
+      }
+      button:hover {
+        opacity: 0.8;
+      }
+      .formcontainer {
+        text-align: center;
+        margin: 24px 50px 12px;
+      }
+      .container {
+        padding: 16px 0;
+        text-align: left;
+      }
+      span.psw {
+        float: right;
+        padding-top: 0;
+        padding-right: 15px;
+      }
+      /* Change styles for span on extra small screens */
+      @media screen and (max-width: 300px) {
+        span.psw {
+          display: block;
+          float: none;
+        }
+      }
+
+      /* Added styles for table container */
+      .result-table {
+        max-height: 200px; /* Adjust the maximum height as needed */
+        overflow-y: auto;
+      }
+		
+		.result-table {
+		  max-height: 200px; /* Adjust the maximum height as needed */
+		  overflow-y: auto;
+		  display: grid;
+			
+		  justify-content: center;
+		  align-items: center;
+		}
+		
+		.result-table th,
+		.result-table td {
+		  padding: 8px;
+		  border: 1px solid #ccc;
+		  text-align: center;
+		}
+
+      /* Added styles for the graph container */
+      .graph-container {
+        margin-top: 20px;
+        display: none;
+      }
+    </style>
+    <script>
+      function clearAll() {
+        document.getElementById("resultTable").innerHTML = "";
+        document.getElementById("specific_gravity").value = "";
+        document.getElementById("P").value = "";
+        document.getElementById("API_gravity").value = "";
+        document.getElementById("T").value = "";
+        document.getElementById("PD").value = "";
+        clearGraph();
+		reloadPage();
+      }
+		
+		function reloadPage() {
+		  location.reload(true);
+		}
+
+      function clearGraph() {
+        if (window.myChart) {
+          window.myChart.destroy();
+        }
+      }
+
+      function drawGraph(data) {
+        var ctx = document.getElementById('chart').getContext('2d');
+        window.myChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: data.labels,
+            datasets: [{
+              label: 'Pressure (Psia) vs. Rs (SCF/STB)',
+              data: data.rsValues,
+              backgroundColor: 'rgba(75, 192, 192, 0.2)',
+              borderColor: 'rgba(75, 192, 192, 1)',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 1,
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: 'Pressure (Psia)'
+                },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: 'Rs (SCF/STB)'
+                },
+              }
+            }
+          }
+        });
+      }
+
+      function calculate() {
+        const specificGravity = document.getElementById("specific_gravity").value;
+        const P = document.getElementById("P").value;
+        const APIGravity = document.getElementById("API_gravity").value;
+        const T = document.getElementById("T").value;
+        const PD = document.getElementById("PD").value;
+
+        if (specificGravity === "" || P === "" || APIGravity === "" || T === "" || PD === "") {
+          alert("Error: Please fill in all the required fields.");
+          return;
+        }
+		  
+		if ( parseFloat(P) < 130 || parseFloat(P)>7000 ) {
+          alert("Error: Pressure range 130 Psia <= P <=7000 Psia.");
+          return;
+        }  
+
+        const resultTable = document.getElementById("resultTable");
+        resultTable.innerHTML = "<tr><th>Pressure (Psia)</th><th>Rs (SCF/STB)</th></tr>";
+
+        const labels = [];
+        const rsValues = [];
+
+        const originalPressure = parseFloat(P);
+
+        // Display loading message with percentage
+        const loadingMessage = document.createElement("tr");
+        const loadingMessageCell = document.createElement("td");
+        loadingMessageCell.setAttribute("colspan", "2");
+        loadingMessageCell.classList.add("loading-message");
+        const progressSpan = document.createElement("span");
+        progressSpan.textContent = "Please wait... 0%";
+        loadingMessageCell.appendChild(progressSpan);
+        loadingMessage.appendChild(loadingMessageCell);
+        resultTable.appendChild(loadingMessage);
+
+        let progress = 0;
+        const totalSteps = Math.ceil(originalPressure / parseInt(PD));
+
+        function updateProgress() {
+          progress++;
+          const percentage = Math.floor((progress / totalSteps) * 100);
+          progressSpan.textContent = `Please wait... ${percentage}%`;
+
+          if (progress === totalSteps) {
+            // Remove loading message
+            resultTable.removeChild(loadingMessage);
+
+            // Display table with results
+            for (let i = 0; i < labels.length; i++) {
+              const roundedRs = rsValues[i].toFixed(2); // Round Rs to 2 decimal places
+              resultTable.innerHTML += `<tr><td>${labels[i]}</td><td>${roundedRs}</td></tr>`;
+            }
+
+            drawGraph({ labels: labels.reverse(), rsValues: rsValues.reverse() });
+
+            // Show the graph container
+            document.querySelector(".graph-container").style.display = "block";
+          }
+        }
+
+        for (let i = originalPressure; i >= 0; i -= parseInt(PD)) {
+          //const rs = specificGravity * Math.pow((((i / 18.2) + 1.4) * Math.pow(10, (0.0125 * APIGravity - 0.000917 * T))), 1.2048);
+		  
+		  
+		  	let rs;
+			if (APIGravity <= 30) {
+				rs = (0.0362 * specificGravity * Math.pow(i, 1.0937)) * Math.exp((25.724 * APIGravity) / (460 + parseInt(T)));
+			} else {
+				rs = (0.0178 * specificGravity * Math.pow(i, 1.1870)) * Math.exp((23.931 * APIGravity) / (460 + parseInt(T)));
+			}
+			
+		  ///const rs = specificGravity * Math.pow(Math.pow(10, (2.8869 - Math.sqrt(14.1811 - 3.3093 * Math.log10(i)))), 1.2255) * Math.pow((APIGravity ** 0.989) / (T ** 0.172), 1.2255);
+          
+		  labels.push(i);
+          rsValues.push(rs);
+
+          setTimeout(updateProgress, 20 * progress); // Delay the progress update for demonstration purposes
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <form action="/action_page.php">
+	  <h1>Reservoir Fluid Properties</h1>
+	  
+		<center><h2>Gas Solubility Calculator | Vazquez, M.E. and Beggs, H.D. Correlation</h2></center>
+		<center>
+		  <h3>Saturated Oil Reservoir</h3>
+		</center>
+	  <div class="formcontainer">
+        <div class="container">
+
+          <label for="data_range"><b>Range of Data Used - Vazquez, M.E. and Beggs, H.D. Correlation</b></label><br><br>
+		  <label for="data_range">Bubble Point Pressure, psia: 15.0 - 6055</label><br>
+		  <label for="data_range">Reservoir Temperature, F: 162 - 180</label><br>
+		  <label for="data_range">Oil FVF, bbl/STB: 1.028 - 2.226 </label><br>
+	      <label for="data_range">Gas/Oil Ratio, SCF/STB: 0.0 - 2199</label><br>
+		  <label for="data_range">Tank Oil Gravity, API: 15.3 - 59.5</label><br>
+		  <label for="data_range">Gas Specific Gravity: 0.511 - 1.351</label><br>
+		  <label for="data_range">Separator Pressure, psia: 60 - 565</label><br>
+		  <label for="data_range">Separator Temperature, F: 76 - 150</label><br><br>
+		  
+		  <label for="specific_gravity">Specific Gravity</label><br>
+          <input type="text" name="specific_gravity" id="specific_gravity" required><br>
+          <label for="P">Reservoir Pressure (Psia):</label>
+          <input type="text" name="P" id="P" required><br>
+          <label for="API_gravity">API Gravity:</label>
+          <input type="text" name="API_gravity" id="API_gravity" required><br>
+          <label for="T">Reservoir Temperature (F):</label>
+          <input type="text" name="T" id="T" required><br>
+          <label for="PD">Pressure Decrement:</label>
+          <input type="text" name="PD" id="PD" required><br>
+        </div>
+
+        <button type="button" onclick="calculate()">Calculate</button>
+        <button type="button" onclick="clearAll()">Clear</button>
+
+        <div class="container">
+          <div class="result-table">
+            <table id="resultTable"></table>
+          </div>
+        </div>
+        <div class="container">
+          <div class="graph-container" style="display: none;">
+            <canvas id="chart"></canvas>
+          </div>
+        </div>
+
+      </div>
+    </form>
+  </body>
+</html>
